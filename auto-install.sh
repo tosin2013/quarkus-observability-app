@@ -160,6 +160,20 @@ oc process -f openshift/grafana/21-consolelink.yaml \
     -p GRAFANA_NAMESPACE=$GRAFANA_NAMESPACE \
     -p GRAFANA_ROUTE=$GRAFANA_ROUTE | oc apply -f -
 
+cat >grafana-sa-token-secret.yaml<<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-sa-token
+  annotations:
+    kubernetes.io/service-account.name: grafana-sa
+type: kubernetes.io/service-account-token
+EOF
+
+oc create -f grafana-sa-token-secret.yaml -n $GRAFANA_NAMESPACE
+rm grafana-sa-token-secret.yaml
+oc patch serviceaccount grafana-sa -p '{"secrets": [{"name": "grafana-sa-token"}]}' -n $GRAFANA_NAMESPACE
+sleep 5s
 # --- In OCP 4.11 or higher ---
 BEARER_TOKEN=$(oc get secret $(oc describe sa grafana-sa -n $GRAFANA_NAMESPACE | awk '/Tokens/{ print $2 }') -n $GRAFANA_NAMESPACE --template='{{ .data.token | base64decode }}')
 
